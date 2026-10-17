@@ -1,0 +1,638 @@
+{
+  "version": "3.0.0",
+  "os": "27.0.0",
+  "mode": "granted",
+  "checks": [
+    {
+      "ok": true,
+      "name": "isSupported",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "blank address callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "blank address success flag",
+      "detail": {
+        "success": false,
+        "code": "invalid_address",
+        "source": {},
+        "type": "completed",
+        "error": "A nonempty address is required."
+      }
+    },
+    {
+      "ok": true,
+      "name": "blank error payload",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "invalid latitude callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "invalid latitude success flag",
+      "detail": {
+        "success": false,
+        "code": "invalid_coordinates",
+        "source": {},
+        "type": "completed",
+        "error": "Latitude/longitude must be finite and within valid ranges."
+      }
+    },
+    {
+      "ok": true,
+      "name": "NaN longitude callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "NaN longitude success flag",
+      "detail": {
+        "success": false,
+        "code": "invalid_coordinates",
+        "source": {},
+        "type": "completed",
+        "error": "Latitude/longitude must be finite and within valid ranges."
+      }
+    },
+    {
+      "ok": true,
+      "name": "Manhattan forward callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Manhattan forward success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "Manhattan forward callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Manhattan forward coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Cupertino forward callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Cupertino forward success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "Cupertino forward callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Cupertino forward coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward locality",
+      "detail": "New York"
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward subLocality",
+      "detail": "Brooklyn"
+    },
+    {
+      "ok": true,
+      "name": "Williamsburg forward subAdministrativeArea",
+      "detail": "Kings County"
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse locality",
+      "detail": "New York"
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse subLocality",
+      "detail": "Brooklyn"
+    },
+    {
+      "ok": true,
+      "name": "Brooklyn reverse subAdministrativeArea",
+      "detail": "Kings County"
+    },
+    {
+      "ok": true,
+      "name": "London forward callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "London forward success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "London forward callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "London forward coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Paris reverse callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Paris reverse success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "Paris reverse callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "Paris reverse coordinates",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "current place busy callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "current place busy success flag",
+      "detail": {
+        "success": false,
+        "code": "busy",
+        "source": {},
+        "type": "completed",
+        "error": "A current-place request is already pending."
+      }
+    },
+    {
+      "ok": true,
+      "name": "busy error payload",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "current place callback once",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "current place success flag",
+      "detail": {
+        "placeCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "name": "current place callback structure",
+      "detail": null
+    },
+    {
+      "ok": true,
+      "name": "current place coordinates",
+      "detail": null
+    }
+  ],
+  "responses": {
+    "blank address": {
+      "success": false,
+      "code": "invalid_address",
+      "source": {},
+      "type": "completed",
+      "error": "A nonempty address is required."
+    },
+    "invalid latitude": {
+      "success": false,
+      "code": "invalid_coordinates",
+      "source": {},
+      "type": "completed",
+      "error": "Latitude/longitude must be finite and within valid ranges."
+    },
+    "NaN longitude": {
+      "success": false,
+      "code": "invalid_coordinates",
+      "source": {},
+      "type": "completed",
+      "error": "Latitude/longitude must be finite and within valid ranges."
+    },
+    "Manhattan forward": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "New York County",
+          "fullAddress": "20 W 34th St, New York, NY  10118, United States",
+          "timestamp": 1792217870552,
+          "countryName": "United States",
+          "longitude": -73.9854113,
+          "subLocality": "Manhattan",
+          "latitude": 40.7484788,
+          "administrativeArea": "NY",
+          "countryCode": "US",
+          "thoroughfare": "W 34th St",
+          "shortAddress": "20 W 34th St, New York",
+          "subThoroughfare": "20",
+          "postalCode": "10118",
+          "region": {
+            "lng": -73.98541129999998,
+            "lat": 40.74847880151688,
+            "identifier": "<+40.74847880,-73.98541130> radius 70.59",
+            "radius": 70.58732789952029
+          },
+          "addressDictionary": {
+            "SubAdministrativeArea": "New York County",
+            "Street": "20 W 34th St",
+            "SubLocality": "Manhattan",
+            "State": "NY",
+            "ZIP": "10118",
+            "CountryCode": "US",
+            "Name": "20 W 34th St",
+            "Thoroughfare": "W 34th St",
+            "SubThoroughfare": "20",
+            "FormattedAddressLines": [
+              "20 W 34th St",
+              "New York, NY  10118",
+              "United States"
+            ],
+            "Country": "United States",
+            "City": "New York"
+          },
+          "locality": "New York",
+          "name": "20 W 34th St"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "Cupertino forward": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "Santa Clara County",
+          "fullAddress": "1 Apple Park Way, Cupertino, CA  95014, United States",
+          "countryName": "United States",
+          "timestamp": 1792217870566,
+          "longitude": -122.0090403,
+          "countryCode": "US",
+          "latitude": 37.334859,
+          "administrativeArea": "CA",
+          "thoroughfare": "Apple Park Way",
+          "shortAddress": "1 Apple Park Way, Cupertino",
+          "subThoroughfare": "1",
+          "postalCode": "95014",
+          "region": {
+            "lng": -122.0090403,
+            "lat": 37.33485900134286,
+            "identifier": "<+37.33485900,-122.00904030> radius 70.59",
+            "radius": 70.58731422464797
+          },
+          "addressDictionary": {
+            "Street": "1 Apple Park Way",
+            "SubAdministrativeArea": "Santa Clara County",
+            "State": "CA",
+            "SubThoroughfare": "1",
+            "ZIP": "95014",
+            "CountryCode": "US",
+            "Thoroughfare": "Apple Park Way",
+            "Country": "United States",
+            "Name": "1 Apple Park Way",
+            "FormattedAddressLines": [
+              "1 Apple Park Way",
+              "Cupertino, CA  95014",
+              "United States"
+            ],
+            "City": "Cupertino"
+          },
+          "locality": "Cupertino",
+          "name": "1 Apple Park Way"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "Williamsburg forward": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "Kings County",
+          "fullAddress": "Williamsburg, Brooklyn, New York, NY, United States",
+          "countryName": "United States",
+          "timestamp": 1792217870721,
+          "longitude": -73.9511116,
+          "subLocality": "Brooklyn",
+          "latitude": 40.7109548,
+          "administrativeArea": "NY",
+          "countryCode": "US",
+          "shortAddress": "Williamsburg, Brooklyn, New York",
+          "region": {
+            "lng": -73.94571685000001,
+            "lat": 40.71288653447572,
+            "identifier": "<+40.71288653,-73.94571685> radius 2727.83",
+            "radius": 2727.831304585601
+          },
+          "addressDictionary": {
+            "SubLocality": "Brooklyn",
+            "SubAdministrativeArea": "Kings County",
+            "State": "NY",
+            "CountryCode": "US",
+            "Country": "United States",
+            "Name": "Williamsburg",
+            "FormattedAddressLines": [
+              "Williamsburg",
+              "Brooklyn, New York, NY",
+              "United States"
+            ],
+            "City": "New York"
+          },
+          "locality": "New York",
+          "name": "Williamsburg"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "Brooklyn reverse": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "Kings County",
+          "fullAddress": "184 Bedford Ave, Brooklyn, NY  11249, United States",
+          "timestamp": 1792217870838,
+          "countryName": "United States",
+          "longitude": -73.9580568,
+          "subLocality": "Brooklyn",
+          "latitude": 40.7178261,
+          "administrativeArea": "NY",
+          "countryCode": "US",
+          "thoroughfare": "Bedford Ave",
+          "shortAddress": "184 Bedford Ave, Brooklyn",
+          "subThoroughfare": "184",
+          "postalCode": "11249",
+          "region": {
+            "lng": -73.95805679999998,
+            "lat": 40.71782610151526,
+            "identifier": "<+40.71782610,-73.95805680> radius 70.59",
+            "radius": 70.58732776985488
+          },
+          "addressDictionary": {
+            "SubAdministrativeArea": "Kings County",
+            "Street": "184 Bedford Ave",
+            "SubLocality": "Brooklyn",
+            "State": "NY",
+            "ZIP": "11249",
+            "CountryCode": "US",
+            "Name": "184 Bedford Ave",
+            "Thoroughfare": "Bedford Ave",
+            "SubThoroughfare": "184",
+            "FormattedAddressLines": [
+              "184 Bedford Ave",
+              "Brooklyn, NY  11249",
+              "United States"
+            ],
+            "Country": "United States",
+            "City": "New York"
+          },
+          "locality": "New York",
+          "name": "184 Bedford Ave"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "London forward": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "London",
+          "fullAddress": "10 Downing Street, London, SW1A 2AA, England",
+          "timestamp": 1792217870862,
+          "countryName": "United Kingdom",
+          "longitude": -0.12767,
+          "subLocality": "City of Westminster",
+          "latitude": 51.503541,
+          "administrativeArea": "England",
+          "countryCode": "GB",
+          "thoroughfare": "Downing Street",
+          "shortAddress": "10 Downing Street, London",
+          "subThoroughfare": "10",
+          "postalCode": "SW1A 2AA",
+          "region": {
+            "lng": -0.12766999999999307,
+            "lat": 51.503541002213574,
+            "identifier": "<+51.50354100,-0.12767000> radius 70.59",
+            "radius": 70.5873826413654
+          },
+          "addressDictionary": {
+            "SubAdministrativeArea": "London",
+            "Street": "10 Downing Street",
+            "SubLocality": "City of Westminster",
+            "State": "England",
+            "ZIP": "SW1A 2AA",
+            "CountryCode": "GB",
+            "Name": "10 Downing Street",
+            "Thoroughfare": "Downing Street",
+            "SubThoroughfare": "10",
+            "FormattedAddressLines": [
+              "10 Downing Street",
+              "London",
+              "SW1A 2AA",
+              "England"
+            ],
+            "Country": "United Kingdom",
+            "City": "London"
+          },
+          "locality": "London",
+          "name": "10 Downing Street"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "Paris reverse": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "Paris",
+          "fullAddress": "Eiffel Tower, 5 Avenue Anatole France, 75007 Paris, France",
+          "timestamp": 1792217870967,
+          "countryName": "France",
+          "longitude": 2.2945013,
+          "subLocality": "7th Arr.",
+          "latitude": 48.8582448,
+          "administrativeArea": "Île-de-France",
+          "countryCode": "FR",
+          "thoroughfare": "Avenue Anatole France",
+          "shortAddress": "5 Avenue Anatole France, Paris",
+          "subThoroughfare": "5",
+          "postalCode": "75007",
+          "region": {
+            "lng": 2.2945013000000314,
+            "lat": 48.858244802015165,
+            "identifier": "<+48.85824480,+2.29450130> radius 70.59",
+            "radius": 70.58736705242839
+          },
+          "addressDictionary": {
+            "SubAdministrativeArea": "Paris",
+            "Street": "5 Avenue Anatole France",
+            "SubLocality": "7th Arr.",
+            "State": "Île-de-France",
+            "ZIP": "75007",
+            "CountryCode": "FR",
+            "Name": "Eiffel Tower",
+            "Thoroughfare": "Avenue Anatole France",
+            "SubThoroughfare": "5",
+            "FormattedAddressLines": [
+              "Eiffel Tower",
+              "5 Avenue Anatole France",
+              "75007 Paris",
+              "France"
+            ],
+            "Country": "France",
+            "City": "Paris"
+          },
+          "locality": "Paris",
+          "name": "Eiffel Tower"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    },
+    "current place busy": {
+      "success": false,
+      "code": "busy",
+      "source": {},
+      "type": "completed",
+      "error": "A current-place request is already pending."
+    },
+    "current place": {
+      "success": true,
+      "placeCount": 1,
+      "places": [
+        {
+          "subAdministrativeArea": "Kings County",
+          "fullAddress": "184 Bedford Ave, Brooklyn, NY  11249, United States",
+          "timestamp": 1792217871092,
+          "countryName": "United States",
+          "longitude": -73.9580568,
+          "subLocality": "Brooklyn",
+          "latitude": 40.7178261,
+          "administrativeArea": "NY",
+          "countryCode": "US",
+          "thoroughfare": "Bedford Ave",
+          "shortAddress": "184 Bedford Ave, Brooklyn",
+          "subThoroughfare": "184",
+          "postalCode": "11249",
+          "region": {
+            "lng": -73.95805679999998,
+            "lat": 40.71782610151526,
+            "identifier": "<+40.71782610,-73.95805680> radius 70.59",
+            "radius": 70.58732776985488
+          },
+          "addressDictionary": {
+            "SubAdministrativeArea": "Kings County",
+            "Street": "184 Bedford Ave",
+            "SubLocality": "Brooklyn",
+            "State": "NY",
+            "ZIP": "11249",
+            "CountryCode": "US",
+            "Name": "184 Bedford Ave",
+            "Thoroughfare": "Bedford Ave",
+            "SubThoroughfare": "184",
+            "FormattedAddressLines": [
+              "184 Bedford Ave",
+              "Brooklyn, NY  11249",
+              "United States"
+            ],
+            "Country": "United States",
+            "City": "New York"
+          },
+          "locality": "New York",
+          "name": "184 Bedford Ave"
+        }
+      ],
+      "type": "completed",
+      "source": {}
+    }
+  },
+  "complete": true,
+  "failures": 0
+}

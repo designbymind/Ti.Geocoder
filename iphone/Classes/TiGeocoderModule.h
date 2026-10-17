@@ -1,24 +1,15 @@
-/**
- * TiGeocoder
- *
- * Native Geo Coders for Titanium
- *
- * Created by Benjamin Bahrenburg (bencoding)
- * Copyright (c) 2015 Benjamin Bahrenburg (bencoding). All rights reserved.
- *
- */
-
+// Ti.Geocoder — native MapKit geocoding for Titanium.
 #import "TiModule.h"
 #import <CoreLocation/CoreLocation.h>
+#import <MapKit/MapKit.h>
 
-@interface TiGeocoderModule : TiModule<CLLocationManagerDelegate>{
-@private
-    BOOL _isStarted;
-    //KrollCallback *positionCallback;
+@interface TiGeocoderModule : TiModule <CLLocationManagerDelegate> {
     KrollCallback *_placeCallback;
-    float _staleLimit;
+    NSMutableDictionary<NSUUID *, NSDictionary *> *_requests;
+    NSTimer *_locationTimer;
+    BOOL _isStarted;
+    BOOL _shuttingDown;
+    NSTimeInterval _staleLimit;
 }
-
-@property (nonatomic, strong) CLLocationManager * locManager;
-
+@property (nonatomic, strong) CLLocationManager *locManager;
 @end

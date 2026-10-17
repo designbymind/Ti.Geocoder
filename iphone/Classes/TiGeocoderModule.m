@@ -1,320 +1,232 @@
 /**
- * TiGeocoder
- *
- * Native Geo Coders for Titanium
- *
- * Created by Benjamin Bahrenburg (bencoding)
- * Copyright (c) 2015 Benjamin Bahrenburg (bencoding). All rights reserved.
- *
+ * Ti.Geocoder. Original wrapper Copyright (c) 2015 Benjamin Bahrenburg.
+ * MapKit migration Copyright (c) 2026 DesignByMind LLC.
  */
-
 #import "TiGeocoderModule.h"
 #import "TiBase.h"
 #import "TiHost.h"
 #import "TiUtils.h"
-
-
-#ifndef BXBGeocoderHelpers
 #import "BXBGeocoderHelpers.h"
-#endif
+#import <math.h>
 
-//BXBGeoHelpers
 @implementation TiGeocoderModule
+- (id)moduleGUID { return @"32bae808-920d-4d82-b99d-f0541f686692"; }
+- (NSString *)moduleId { return @"ti.geocoder"; }
 
-@synthesize locManager;
-
-#pragma mark Internal
-
-// this is generated for your module, please do not change it
--(id)moduleGUID
+- (void)startup
 {
-	return @"32bae808-920d-4d82-b99d-f0541f686692";
+    [super startup];
+    _requests = [NSMutableDictionary dictionary];
 }
 
-// this is generated for your module, please do not change it
--(NSString*)moduleId
+- (void)shutdown:(id)sender
 {
-	return @"ti.geocoder";
-}
-
-#pragma mark Lifecycle
-
-
--(void)startup
-{
-    _isStarted = NO;
-    
-	// this method is called when the module is first loaded
-	// you *must* call the superclass
-	[super startup];
-    
-}
-
--(void)shutdown:(id)sender
-{
-	// this method is called when the module is being unloaded
-	// typically this is during shutdown. make sure you don't do too
-	// much processing here or the app will be quit forceably
-
-	// you *must* call the superclass
-	[super shutdown:sender];
-}
-
-#pragma mark Cleanup
-
-
-#pragma mark Internal Memory Management
-
--(void)didReceiveMemoryWarning:(NSNotification*)notification
-{
-	// optionally release any resources that can be dynamically
-	// reloaded once memory is available - such as caches
-	[super didReceiveMemoryWarning:notification];
-}
-
-
-#pragma Public APIs
-
--(NSNumber*)isSupported:(id)args
-{
-
-    if(NSClassFromString(@"UIReferenceLibraryViewController"))
-    {
-        return NUMBOOL(YES);
-    }else{
-        return NUMBOOL(NO);
+    ENSURE_UI_THREAD(shutdown, sender);
+    _shuttingDown = YES;
+    [_locationTimer invalidate];
+    _locationTimer = nil;
+    [self.locManager stopUpdatingLocation];
+    self.locManager.delegate = nil;
+    _placeCallback = nil;
+    NSArray *pending = _requests.allValues;
+    [_requests removeAllObjects];
+    for (NSDictionary *entry in pending) {
+        [entry[@"timer"] invalidate];
+        [entry[@"request"] cancel];
     }
+    [super shutdown:sender];
 }
 
--(void)forwardGeocoder:(id)args
+- (NSNumber *)isSupported:(id)args
 {
-    
-    ENSURE_ARG_COUNT(args,2);
-    NSString* address = [TiUtils stringValue:[args objectAtIndex:0]];
-    KrollCallback *callback = [args objectAtIndex:1];
-    ENSURE_TYPE(callback,KrollCallback);
-    ENSURE_UI_THREAD(forwardGeocoder,args);
-    
-    BXBGeocoderHelpers * helpers = [[BXBGeocoderHelpers alloc] init];
-    
-    if ([CLLocationManager locationServicesEnabled]== NO)
-    {
-        [helpers disabledLocationServiceMessage];
-        return;
-    }
-    
-    [helpers requestPermission];
-    
-    CLGeocoder *geocoder = [[CLGeocoder alloc] init];
-    
-    [geocoder geocodeAddressString:address completionHandler:^(NSArray* placemarks, NSError* error){
-        
-        if(placemarks && placemarks.count > 0)
-        {
-            NSMutableArray *placeData = [[NSMutableArray alloc] init];
-            int placesCount = (int)[placemarks count];
-            for (int iLoop = 0; iLoop < placesCount; iLoop++) {
-                [placeData addObject:[helpers buildFromPlaceLocation:[placemarks objectAtIndex:iLoop]]];
-            }
-            
-            if (callback){
-                NSDictionary *eventOk = [NSDictionary dictionaryWithObjectsAndKeys:
-                                         [NSNumber numberWithInt:placesCount],@"placeCount",
-                                         placeData,@"places",
-                                         NUMBOOL(YES),@"success",
-                                         nil];
-                
-                [self _fireEventToListener:@"completed"
-                                withObject:eventOk listener:callback thisObject:nil];
-            }
-            
-        }
-        else
-        {
-            if (callback){
-                NSDictionary* eventErr = [NSDictionary dictionaryWithObjectsAndKeys:
-                                          [error localizedDescription],@"error",
-                                          NUMBOOL(NO),@"success",nil];
-                
-                [self _fireEventToListener:@"completed"
-                                withObject:eventErr listener:callback thisObject:nil];
-            }
-        }
+    BOOL supported = [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion){26, 0, 0}]
+             && NSClassFromString(@"MKGeocodingRequest") != nil
+             && NSClassFromString(@"MKReverseGeocodingRequest") != nil;
+    return NUMBOOL(supported);
+}
+
+- (void)sendError:(NSString *)message code:(NSString *)code callback:(KrollCallback *)callback
+{
+    if (!callback || _shuttingDown) return;
+    [self _fireEventToListener:@"completed" withObject:@{
+        @"success": @NO, @"error": message ?: @"Geocoding failed.", @"code": code
+    } listener:callback thisObject:nil];
+}
+
+// Main-thread request records retain native requests until completion/timeout.
+// Removing a record before delivery guarantees a single callback, even if a
+// cancelled request subsequently invokes its completion handler.
+- (NSUUID *)trackRequest:(id)request callback:(KrollCallback *)callback
+{
+    NSUUID *token = [NSUUID UUID];
+    __weak TiGeocoderModule *weakSelf = self;
+    NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:45 repeats:NO block:^(NSTimer *timer) {
+        TiGeocoderModule *strongSelf = weakSelf;
+        if (!strongSelf) return;
+        NSDictionary *entry = strongSelf->_requests[token];
+        if (!entry) return;
+        [strongSelf->_requests removeObjectForKey:token];
+        [entry[@"request"] cancel];
+        [strongSelf sendError:@"Geocoding timed out." code:@"timeout" callback:entry[@"callback"]];
     }];
-    
-}
--(void)reverseGeocoder:(id)args
-{
-    
-    ENSURE_ARG_COUNT(args,3);
-    CGFloat lat = [TiUtils floatValue:[args objectAtIndex:0]];
-    CGFloat lon = [TiUtils floatValue:[args objectAtIndex:1]];
-    KrollCallback *callback = [args objectAtIndex:2];
-    ENSURE_TYPE(callback,KrollCallback);
-    ENSURE_UI_THREAD(reverseGeocoder,args);
-    
-    
-    BXBGeocoderHelpers * helpers = [[BXBGeocoderHelpers alloc] init];
-    
-    if ([CLLocationManager locationServicesEnabled]== NO)
-    {
-        [helpers disabledLocationServiceMessage];
-        return;
-    }
-    
-    [helpers requestPermission];
-    
-    CLLocation *findLocation = [[CLLocation alloc] initWithLatitude:lat longitude:lon];
-    
-    [self findPlace:findLocation withCallback:callback];
-    
+    _requests[token] = @{@"request": request, @"callback": callback, @"timer": timer};
+    return token;
 }
 
--(void)getCurrentPlace:(id)callback
+- (void)completeRequest:(NSUUID *)token mapItems:(NSArray<MKMapItem *> *)items error:(NSError *)error
 {
-    ENSURE_SINGLE_ARG(callback,KrollCallback);
-    ENSURE_UI_THREAD(getCurrentPlace,callback);
-    _placeCallback = callback;
-    
-    _staleLimit = [TiUtils floatValue:[self valueForUndefinedKey:@"staleLimit"]def:15.0];
-    
-    BXBGeocoderHelpers * helpers = [[BXBGeocoderHelpers alloc] init];
-    
-    if ([CLLocationManager locationServicesEnabled]== NO)
-    {
-        [helpers disabledLocationServiceMessage];
+    NSDictionary *entry = _requests[token];
+    if (!entry || _shuttingDown) return;
+    [_requests removeObjectForKey:token];
+    [entry[@"timer"] invalidate];
+    KrollCallback *callback = entry[@"callback"];
+    if (error || items.count == 0) {
+        [self sendError:error.localizedDescription ?: @"No places found."
+                   code:error ? @"geocoding_failed" : @"no_results" callback:callback];
         return;
     }
-    
-    [helpers requestPermission];
-        
-    [self startFindingLocation];
+    NSMutableArray *places = [NSMutableArray arrayWithCapacity:items.count];
+    for (MKMapItem *item in items) [places addObject:[BXBGeocoderHelpers buildFromMapItem:item]];
+    [self _fireEventToListener:@"completed" withObject:@{
+        @"success": @YES, @"placeCount": @(places.count), @"places": places
+    } listener:callback thisObject:nil];
+}
+
+- (void)forwardGeocoder:(id)args
+{
+    ENSURE_ARG_COUNT(args, 2);
+    ENSURE_UI_THREAD(forwardGeocoder, args);
+    KrollCallback *callback = args[1];
+    ENSURE_TYPE(callback, KrollCallback);
+    NSString *address = [[TiUtils stringValue:args[0]] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    MKGeocodingRequest *request = address.length ? [[MKGeocodingRequest alloc] initWithAddressString:address] : nil;
+    if (!request) {
+        [self sendError:@"A nonempty address is required." code:@"invalid_address" callback:callback];
+        return;
+    }
+    NSUUID *token = [self trackRequest:request callback:callback];
+    __weak TiGeocoderModule *weakSelf = self;
+    [request getMapItemsWithCompletionHandler:^(NSArray<MKMapItem *> *items, NSError *error) {
+        [weakSelf completeRequest:token mapItems:items error:error];
+    }];
+}
+
+- (void)reverseGeocoder:(id)args
+{
+    ENSURE_ARG_COUNT(args, 3);
+    ENSURE_UI_THREAD(reverseGeocoder, args);
+    KrollCallback *callback = args[2];
+    ENSURE_TYPE(callback, KrollCallback);
+    double latitude = [TiUtils doubleValue:args[0] def:NAN];
+    double longitude = [TiUtils doubleValue:args[1] def:NAN];
+    CLLocationCoordinate2D coordinate = CLLocationCoordinate2DMake(latitude, longitude);
+    if (!isfinite(latitude) || !isfinite(longitude) || !CLLocationCoordinate2DIsValid(coordinate)) {
+        [self sendError:@"Latitude/longitude must be finite and within valid ranges." code:@"invalid_coordinates" callback:callback];
+        return;
+    }
+    [self findPlace:[[CLLocation alloc] initWithLatitude:latitude longitude:longitude] callback:callback];
+}
+
+- (void)findPlace:(CLLocation *)location callback:(KrollCallback *)callback
+{
+    MKReverseGeocodingRequest *request = [[MKReverseGeocodingRequest alloc] initWithLocation:location];
+    if (!request) {
+        [self sendError:@"Invalid location." code:@"invalid_coordinates" callback:callback];
+        return;
+    }
+    NSUUID *token = [self trackRequest:request callback:callback];
+    __weak TiGeocoderModule *weakSelf = self;
+    [request getMapItemsWithCompletionHandler:^(NSArray<MKMapItem *> *items, NSError *error) {
+        [weakSelf completeRequest:token mapItems:items error:error];
+    }];
+}
+
+- (void)getCurrentPlace:(id)callback
+{
+    ENSURE_SINGLE_ARG(callback, KrollCallback);
+    ENSURE_UI_THREAD(getCurrentPlace, callback);
+    if (_placeCallback) {
+        [self sendError:@"A current-place request is already pending." code:@"busy" callback:callback];
+        return;
+    }
+    if (![CLLocationManager locationServicesEnabled]) {
+        [self sendError:@"Location Services are disabled." code:@"location_disabled" callback:callback];
+        return;
+    }
+    if (!self.locManager) {
+        self.locManager = [[CLLocationManager alloc] init];
+        self.locManager.delegate = self;
+        self.locManager.desiredAccuracy = kCLLocationAccuracyBest;
+    }
+    _staleLimit = [TiUtils doubleValue:[self valueForUndefinedKey:@"staleLimit"] def:15.0];
+    if (!isfinite(_staleLimit) || _staleLimit <= 0) _staleLimit = 15.0;
+    _placeCallback = callback;
+    __weak TiGeocoderModule *weakSelf = self;
+    _locationTimer = [NSTimer scheduledTimerWithTimeInterval:60 repeats:NO block:^(NSTimer *timer) {
+        [weakSelf finishLocationWithError:@"Current location timed out." code:@"timeout"];
+    }];
+    [self updateLocationAuthorization];
+}
+
+- (void)updateLocationAuthorization
+{
+    if (!_placeCallback) return;
+    switch (self.locManager.authorizationStatus) {
+        case kCLAuthorizationStatusNotDetermined:
+            if (![[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationWhenInUseUsageDescription"]) {
+                [self finishLocationWithError:@"getCurrentPlace requires NSLocationWhenInUseUsageDescription." code:@"missing_usage_description"];
+                return;
+            }
+            [self.locManager requestWhenInUseAuthorization];
+            break;
+        case kCLAuthorizationStatusDenied:
+        case kCLAuthorizationStatusRestricted:
+            [self finishLocationWithError:@"Location permission was denied or restricted." code:@"permission_denied"];
+            break;
+        default:
+            if (!_isStarted) {
+                _isStarted = YES;
+                [self.locManager startUpdatingLocation];
+            }
+            break;
+    }
+}
+
+- (void)locationManagerDidChangeAuthorization:(CLLocationManager *)manager
+{
+    [self updateLocationAuthorization];
+}
+
+- (void)finishLocationWithError:(NSString *)message code:(NSString *)code
+{
+    KrollCallback *callback = _placeCallback;
+    _placeCallback = nil;
+    _isStarted = NO;
+    [_locationTimer invalidate];
+    _locationTimer = nil;
+    [self.locManager stopUpdatingLocation];
+    [self sendError:message code:code callback:callback];
 }
 
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
 {
-    
-    [self shutdownFindingLocation];
-    
-    if (_placeCallback!=nil){
-        NSDictionary* eventErr = [NSDictionary dictionaryWithObjectsAndKeys:
-                                  [error localizedDescription],@"error",
-                                  NUMBOOL(NO),@"success",nil];
-        [self _fireEventToListener:@"completed"
-                        withObject:eventErr listener:_placeCallback thisObject:nil];
-        _placeCallback = nil;
-    }
+    if (error.code == kCLErrorLocationUnknown) return; // transient; bounded by our timer
+    [self finishLocationWithError:error.localizedDescription code:@"location_failed"];
 }
 
-- (void)locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation
+- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations
 {
-    [self shutdownFindingLocation];
-    
-    if (_placeCallback!=nil){
-        [self findPlace:newLocation withCallback:_placeCallback];
-        _placeCallback = nil;
-    }
-}
-
--(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray *)locations{
-    
-    [self shutdownFindingLocation];
-    CLLocation *location = [locations lastObject];
-    if (_placeCallback!=nil){
-        [self findPlace:location withCallback:_placeCallback];
-        _placeCallback = nil;
-    }
-}
-
--(void)findPlace:(CLLocation*)location withCallback:(KrollCallback*) callback
-{
-    BXBGeocoderHelpers * helpers = [[BXBGeocoderHelpers alloc] init];
-    CLLocationCoordinate2D latlon = [location coordinate];
-    CLLocation *findLocation = [[CLLocation alloc] initWithLatitude:latlon.latitude longitude:latlon.longitude];
-    CLGeocoder *geocoder = [[CLGeocoder alloc] init];
-    
-    [geocoder reverseGeocodeLocation:findLocation
-                   completionHandler:^(NSArray *placemarks, NSError *error) {
-                       if(placemarks && placemarks.count > 0)
-                       {
-                           NSMutableArray* placeData = [[NSMutableArray alloc] init];
-                           int placesCount = (int)[placemarks count];
-                           for (int iLoop = 0; iLoop < placesCount; iLoop++) {
-                               [placeData addObject:[helpers buildFromPlaceLocation:[placemarks objectAtIndex:iLoop]]];
-                           }
-                           
-                           if (callback!=nil){
-                               NSDictionary *eventOk = [NSDictionary dictionaryWithObjectsAndKeys:
-                                                        [NSNumber numberWithInt:placesCount],@"placeCount",
-                                                        placeData,@"places",
-                                                        NUMBOOL(YES),@"success",
-                                                        nil];
-                               
-                               [self _fireEventToListener:@"completed"
-                                               withObject:eventOk listener:callback thisObject:nil];
-                           }
-                       }
-                       else
-                       {
-                           if (callback!=nil){
-                               NSDictionary* eventErr = [NSDictionary dictionaryWithObjectsAndKeys:
-                                                         [error localizedDescription],@"error",
-                                                         NUMBOOL(NO),@"success",nil];
-                               [self _fireEventToListener:@"completed"
-                                               withObject:eventErr listener:callback thisObject:nil];
-                           }
-                       }
-                   }];
-    
-}
-
--(CLLocationManager*)tempLocationManager
-{
-    if (locManager!=nil)
-    {
-        // if we have an instance, just use it
-        return locManager;
-    }
- 
-    BXBGeocoderHelpers * helpers = [[BXBGeocoderHelpers alloc] init];
-    [helpers requestPermission];
-    
-    if (locManager == nil) {
-        locManager = [[CLLocationManager alloc] init];
-        locManager.delegate = self;
-        locManager.desiredAccuracy = kCLLocationAccuracyBest;
-        NSString * purpose = [TiUtils stringValue:[self valueForUndefinedKey:@"purpose"]];
-        if(purpose!=nil){
-            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            if ([locManager respondsToSelector:@selector(setPurpose)]) {
-                [locManager setPurpose:purpose];
-            }
-        }
-        if([TiUtils isIOS9OrGreater]){
-            #if IS_XCODE_7
-            locManager.allowsBackgroundLocationUpdates = YES;
-            #endif
-        }
-    }
-    return locManager;
-}
-
--(void)startFindingLocation
-{
-    if(_isStarted){
-        return;
-    }
-    
-    [self.tempLocationManager startUpdatingLocation];
-}
-
--(void) shutdownFindingLocation
-{
-    if(locManager!=nil)
-    {
-        [[self tempLocationManager] stopUpdatingLocation];
-    }
+    if (!_placeCallback) return;
+    CLLocation *location = locations.lastObject;
+    if (!location || location.horizontalAccuracy < 0 ||
+        !CLLocationCoordinate2DIsValid(location.coordinate) ||
+        fabs(location.timestamp.timeIntervalSinceNow) > _staleLimit) return;
+    KrollCallback *callback = _placeCallback;
+    _placeCallback = nil;
     _isStarted = NO;
+    [_locationTimer invalidate];
+    _locationTimer = nil;
+    [manager stopUpdatingLocation];
+    [self findPlace:location callback:callback];
 }
-
 @end

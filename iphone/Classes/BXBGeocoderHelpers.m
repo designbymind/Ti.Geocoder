@@ -1,152 +1,61 @@
 /**
- * TiGeocoder
- *
- * Native Geo Coders for Titanium
- *
- * Created by Benjamin Bahrenburg (bencoding)
- * Copyright (c) 2015 Benjamin Bahrenburg (bencoding). All rights reserved.
- *
+ * Ti.Geocoder. Original wrapper Copyright (c) 2015 Benjamin Bahrenburg.
+ * MapKit migration Copyright (c) 2026 DesignByMind LLC.
  */
-
 #import "BXBGeocoderHelpers.h"
-#import "TiUtils.h"
 
 @implementation BXBGeocoderHelpers
-
--(CLLocationManager*)locationPermissionManager
++ (NSDictionary *)buildFromMapItem:(MKMapItem *)item
 {
-    // if we don't have an instance, create it
-    if (locationPermissionManager == nil) {
-        locationPermissionManager = [[CLLocationManager alloc] init];
-        locationPermissionManager.delegate = self;
-        if([TiUtils isIOS9OrGreater]){
-            #if IS_XCODE_7
-            locationPermissionManager.allowsBackgroundLocationUpdates = YES;
-            #endif
-        }
-    }
-    return locationPermissionManager;
-}
+    CLLocation *location = item.location;
+    NSMutableDictionary *data = [@{
+        @"latitude": @(location.coordinate.latitude),
+        @"longitude": @(location.coordinate.longitude),
+        @"timestamp": @((long long)(location.timestamp.timeIntervalSince1970 * 1000))
+    } mutableCopy];
+    if (item.name) data[@"name"] = item.name;
+    if (item.address.fullAddress) data[@"fullAddress"] = item.address.fullAddress;
+    if (item.address.shortAddress) data[@"shortAddress"] = item.address.shortAddress;
 
-
--(void)requestPermission
-{
-    if ([TiUtils isIOS8OrGreater]) {
-        if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"]){
-            [self.locationPermissionManager requestAlwaysAuthorization];
-        }else if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationWhenInUseUsageDescription"]){
-            [self.locationPermissionManager requestWhenInUseAuthorization];
-        }else{
-            NSLog(@"[ERROR] The keys NSLocationAlwaysUsageDescription or NSLocationWhenInUseUsageDescription are not defined in your tiapp.xml.  Starting with iOS8 this is required.");
-        }
+    // MapKit's iOS 26 address types do not expose neighborhood or county.
+    // Keep the public placemark accessor solely for structured-data compatibility.
+    // Never parse a formatted address or substitute city/state for these fields.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    MKPlacemark *placemark = item.placemark;
+    NSDictionary *components = @{
+        @"countryCode": placemark.ISOcountryCode ?: @"",
+        @"countryName": placemark.country ?: @"",
+        @"postalCode": placemark.postalCode ?: @"",
+        @"administrativeArea": placemark.administrativeArea ?: @"",
+        @"subAdministrativeArea": placemark.subAdministrativeArea ?: @"",
+        @"locality": placemark.locality ?: @"",
+        @"subLocality": placemark.subLocality ?: @"",
+        @"thoroughfare": placemark.thoroughfare ?: @"",
+        @"subThoroughfare": placemark.subThoroughfare ?: @""
+    };
+    [components enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString *value, BOOL *stop) {
+        if (value.length > 0) data[key] = value;
+    }];
+    // Preserve the original dictionary verbatim when Apple supplies it.
+    if (placemark.addressDictionary) data[@"addressDictionary"] = placemark.addressDictionary;
+    CLRegion *region = placemark.region;
+    if ([region isKindOfClass:[CLCircularRegion class]]) {
+        CLCircularRegion *circle = (CLCircularRegion *)region;
+        data[@"region"] = @{@"lat": @(circle.center.latitude), @"lng": @(circle.center.longitude),
+                            @"radius": @(circle.radius), @"identifier": circle.identifier ?: @""};
     }
-}
-
-- (void) disabledLocationServiceMessage
-{
-    if ([CLLocationManager locationServicesEnabled]== NO) 
-    {
-        //NOTE: this is from Apple example from LocateMe and it works well. the developer can still check for the
-        //property and do this message themselves before calling geo. But if they don't, we at least do it for them.
-        NSString *title = NSLocalizedString(@"Location Services Disabled",@"Location Services Disabled Alert Title");
-        NSString *msg = NSLocalizedString(@"You currently have all location services for this device disabled. If you proceed, you will be asked to confirm whether location services should be reenabled.",@"Location Services Disabled Alert Message");
-        NSString *ok = NSLocalizedString(@"OK",@"Location Services Disabled Alert OK Button");
-        UIAlertView *servicesDisabledAlert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:ok otherButtonTitles:nil];
-        [servicesDisabledAlert show];
-        
-    }  
-}
-- (NSDictionary *)buildFromPlaceLocation:(CLPlacemark *)placemark
-{
-    
-    NSDictionary *workingRegion = [NSDictionary dictionaryWithObjectsAndKeys:
-                                   NUMDOUBLE(((CLRegion *)[placemark region]).center.latitude),@"lat",NUMDOUBLE(((CLRegion *)[placemark region]).center.longitude),@"lng",NUMDOUBLE(((CLRegion *)[placemark region]).radius),@"radius",((CLRegion *)[placemark region]).identifier,@"identifier",
-                                   nil]; 
-    
-    //NSLog(@"administrativeArea: %@", [placemark administrativeArea]);
-    //NSLog(@"latitude: %f", placemark.location.coordinate.latitude);
-    //NSLog(@"longitude: %f", placemark.location.coordinate.longitude);
-
-    //NSLog(@"latitude as number: %@", [NSNumber numberWithDouble:placemark.location.coordinate.latitude]);
-    //NSLog(@"longitude as number: %@", [NSNumber numberWithDouble:placemark.location.coordinate.longitude]);
-    
-    NSMutableDictionary *data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                 [NSNumber numberWithDouble:placemark.location.coordinate.latitude],@"latitude",
-                                 [NSNumber numberWithDouble:placemark.location.coordinate.longitude],@"longitude",
-                                 nil];
-    
-    if([placemark addressDictionary]!=nil)
-    {
-        [data setObject:[placemark addressDictionary] forKey:@"addressDictionary"];
+#pragma clang diagnostic pop
+    // Only use direct, semantically equivalent MapKit fields as fallbacks.
+    if (!data[@"locality"] && item.addressRepresentations.cityName.length) {
+        data[@"locality"] = item.addressRepresentations.cityName;
     }
-    if([placemark ISOcountryCode]!=nil)
-    {
-        [data setObject:[placemark ISOcountryCode] forKey:@"countryCode"];
+    if (!data[@"countryCode"] && item.addressRepresentations.regionCode.length) {
+        data[@"countryCode"] = item.addressRepresentations.regionCode;
     }
-    if([placemark country]!=nil)
-    {
-        [data setObject:[placemark country] forKey:@"countryName"];
+    if (!data[@"countryName"] && item.addressRepresentations.regionName.length) {
+        data[@"countryName"] = item.addressRepresentations.regionName;
     }
-    if([placemark postalCode]!=nil)
-    {
-        [data setObject:[placemark postalCode] forKey:@"postalCode"];
-    }
-    if([placemark administrativeArea]!=nil)
-    {
-        [data setObject:[placemark administrativeArea] forKey:@"administrativeArea"];
-    }
-    if([placemark subAdministrativeArea]!=nil)
-    {
-        [data setObject:[placemark subAdministrativeArea] forKey:@"subAdministrativeArea"];
-    }
-    if([placemark locality]!=nil)
-    {
-        [data setObject:[placemark locality] forKey:@"locality"];
-    }
-    if([placemark subLocality]!=nil)
-    {
-        [data setObject:[placemark subLocality] forKey:@"subLocality"];
-    }
-    if([placemark thoroughfare]!=nil)
-    {
-        [data setObject:[placemark thoroughfare] forKey:@"thoroughfare"];
-    }
-    if([placemark subThoroughfare]!=nil)
-    {
-        [data setObject:[placemark subThoroughfare] forKey:@"subThoroughfare"];
-    }
-    
-    [data setObject:[NSNumber numberWithLongLong:(long long)([placemark.location.timestamp timeIntervalSince1970] * 1000)] forKey:@"timestamp"];
- 
-    if(workingRegion!=nil)
-    {
-        [data setObject:workingRegion forKey:@"region"];
-    }
-    
     return data;
-}
-
--(NSDictionary*)locationDictionary:(CLLocation*)newLocation;
-{
-	if ([newLocation timestamp] == 0)
-	{
-		// this happens when the location object is essentially null (as in no location)
-		return nil;
-	}
-    
-	CLLocationCoordinate2D latlon = [newLocation coordinate];
-    
-    
-	NSDictionary * data = [NSDictionary dictionaryWithObjectsAndKeys:
-						   [NSNumber numberWithFloat:latlon.latitude],@"latitude",
-						   [NSNumber numberWithFloat:latlon.longitude],@"longitude",
-						   [NSNumber numberWithFloat:[newLocation altitude]],@"altitude",
-						   [NSNumber numberWithFloat:[newLocation horizontalAccuracy]],@"accuracy",
-						   [NSNumber numberWithFloat:[newLocation verticalAccuracy]],@"altitudeAccuracy",
-						   [NSNumber numberWithFloat:[newLocation course]],@"heading",
-						   [NSNumber numberWithFloat:[newLocation speed]],@"speed",
-						   [NSNumber numberWithLongLong:(long long)([[newLocation timestamp] timeIntervalSince1970] * 1000)],@"timestamp",
-						   nil];
-	return data;
 }
 @end

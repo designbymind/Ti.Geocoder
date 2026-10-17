@@ -16,3 +16,9 @@ xcuserdata
 profile
 *.moved-aside
 DerivedData
+.DS_Store
+validation/baseline/
+validation/logs/
+validation/**/modules/
+validation/**/Resources/iphone/
+iphone/metadata.json
